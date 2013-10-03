@@ -1,0 +1,68 @@
+extends layout
+block content
+  .row-fluid
+    .span12
+      h1 #{title}
+      p
+        a#downloadcsv.btn(href='#')
+          i.icon-download-alt
+          |  Download selected as CSV
+      table#users-table.table
+      #loading-users-table
+        i.icon-spinner.icon-spin
+        |  Loading all data, might take some seconds...
+
+append js
+  script
+    //- Initialize Watable
+    var usersWatable = $('#users-table').WATable({
+      url: "/data.json",
+      preFill: false,
+      pageSize: 100,
+      pageSizes: [100,200,500,'All'],
+      filter: true,
+      columnPicker: true,
+      checkboxes: true,
+      tableCreated: function(data) {
+        $('#loading-users-table').hide();
+      }
+    }).data('WATable');
+
+    //- Download selected rows as CSV
+    $('#downloadcsv').click(function(e) {
+      e.preventDefault();
+      var data = usersWatable.getData(true);
+      var columns = Object.keys(data.cols).sort()
+      var columnsDeleted = []
+       // find columns removed by Watable columnPicker
+      for (var i = 0, colsDelLenTag = columns.length; i < colsDelLenTag; i++) {
+        if (data.cols[columns[i]].hidden === true) {
+          columnsDeleted.push(columns[i]);
+        }
+      }
+      //- remove deleted columns from exported CSV
+      for (var j = 0, colsDelLen = columnsDeleted.length; j < colsDelLen; j++) {
+        var index = columns.indexOf(columnsDeleted[j]);
+        columns.splice(index, 1)
+      }
+      //- remove column with actions buttons from CSV
+      columns.splice(columns.indexOf('actions'), 1);
+      //- create CSV and download
+      var csv = columns.join(';') + '\n';
+      for (var k = 0, rowsLen = data.rows.length; k < rowsLen; k++) {
+        var user = data.rows[k];
+        var row = '';
+        user_keys = Object.keys(user).sort();
+        for (var l = 0, colsLen = columns.length; l < colsLen; l++) {
+          field = user[columns[l]]
+          if (field != null) {
+            row = row.concat(field);
+          }
+          if (l+1 < colsLen) {
+            row = row.concat(';');
+          }
+        }
+        csv = [csv, row, '\n'].join('');
+      }
+      location.href='data:text/csv,' + encodeURIComponent(csv)
+    });
